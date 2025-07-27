@@ -14,6 +14,10 @@ class Token(BaseModel):
     refresh_token: Optional[str]
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class TokenData(BaseModel):
     user_id: int
     roles: List[str]

@@ -40,3 +40,10 @@ auth_service/
 ```
 
 All other services follow a similar layout, customised for their domain.
+
+### Auth Service API
+
+The auth service exposes a `/auth/refresh` endpoint. Send a JSON body containing
+`{"refresh_token": "<token>"}` to obtain a new access token when the previous
+one expires. Tables, including `refresh_tokens`, are automatically created on
+startup.

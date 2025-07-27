@@ -49,10 +49,23 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
-def create_refresh_token(user_id: int) -> str:
-    """Create a simple refresh token (UUID string)."""
+def create_refresh_token(db: Session, user_id: int, device_info: str | None = None) -> str:
+    """Generate and persist a refresh token for a user."""
     import uuid
-    return uuid.uuid4().hex
+    token = uuid.uuid4().hex
+    expiry = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    db_token = RefreshToken(token=token, user_id=user_id, device_info=device_info, expiry=expiry)
+    db.add(db_token)
+    db.commit()
+    return token
+
+
+def verify_refresh_token(db: Session, token: str) -> Optional[User]:
+    """Return the associated user if the refresh token is valid and not expired."""
+    db_token = db.query(RefreshToken).filter(RefreshToken.token == token).first()
+    if not db_token or db_token.expiry < datetime.utcnow():
+        return None
+    return db_token.user
 
 
 def get_user_roles(user: User) -> List[str]:
