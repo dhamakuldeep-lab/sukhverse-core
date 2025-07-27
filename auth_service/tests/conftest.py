@@ -1,3 +1,4 @@
+import os
 import sys
 from types import SimpleNamespace
 import pytest
@@ -17,6 +18,10 @@ def client(monkeypatch):
             pass
 
     sys.modules.setdefault("kafka", SimpleNamespace(KafkaProducer=DummyProducer))
+
+    # Provide required JWT settings for the auth service
+    os.environ.setdefault("JWT_SECRET_KEY", "testsecret")
+    os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 
     from auth_service.app import database as database_module
     from auth_service.app.models.base import Base
@@ -42,6 +47,9 @@ def client(monkeypatch):
         "UserOut",
         "Token",
         "RefreshTokenRequest",
+        "ChangePasswordRequest",
+        "PasswordResetRequest",
+        "ResetPasswordRequest",
     ):
         setattr(schemas_pkg, name, getattr(auth_schemas, name))
 
