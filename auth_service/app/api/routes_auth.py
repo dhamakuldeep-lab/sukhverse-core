@@ -10,14 +10,16 @@ from datetime import timedelta
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..database import get_db
-from ..models.user import User, Role
+from ..models.user import User
 from ..services import auth as auth_service
 from jose import JWTError, jwt
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -37,8 +39,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     roles = auth_service.get_user_roles(user)
-    token_data = {"sub": str(user.id), "roles": roles}
-    access_token = auth_service.create_access_token(token_data)
+    access_token = auth_service.create_access_token(user.id, roles)
     refresh_token = auth_service.create_refresh_token(db, user.id)
     return schemas.Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -50,18 +51,24 @@ def refresh_token(token_in: schemas.RefreshTokenRequest, db: Session = Depends(g
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
     roles = auth_service.get_user_roles(user)
-    token_data = {"sub": str(user.id), "roles": roles}
-    access_token = auth_service.create_access_token(token_data)
+    access_token = auth_service.create_access_token(user.id, roles)
     return schemas.Token(access_token=access_token, refresh_token=token_in.refresh_token)
 
 
 @router.get("/me", response_model=schemas.UserOut)
-def read_users_me(current_user: User = Depends()) -> Any:  # type: ignore
-    """Stub for retrieving the current authenticated user.
-
-    In a real implementation, `current_user` would be provided by
-    dependency injection that validates the JWT and fetches the user
-    from the database.
-    """
-    # TODO: implement authentication dependency
-    raise HTTPException(status_code=501, detail="Not implemented")
+def read_users_me(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+) -> Any:
+    """Return the currently authenticated user based on the provided JWT."""
+    token_data = auth_service.decode_access_token(token)
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = db.query(User).filter(User.id == token_data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return schemas.UserOut(
+        id=user.id,
+        email=user.email,
+        status=user.status,
+        roles=token_data.roles,
+    )
