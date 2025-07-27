@@ -48,3 +48,16 @@ class UserOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class PasswordResetRequest(BaseModel):
+    """Request model for initiating a password reset."""
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request model for completing a password reset."""
+
+    token: str
+    new_password: constr(min_length=8)
