@@ -6,8 +6,7 @@ retrieving the current user's information.  Role/permission endpoints
 are stubbed and can be extended.
 """
 
-from datetime import timedelta
-from typing import Any, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -15,9 +14,9 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..database import get_db
-from ..models.user import User, Role
+from ..models.user import User
 from ..services import auth as auth_service
-from jose import JWTError, jwt
+from ..security.jwt import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -56,12 +55,12 @@ def refresh_token(token_in: schemas.RefreshTokenRequest, db: Session = Depends(g
 
 
 @router.get("/me", response_model=schemas.UserOut)
-def read_users_me(current_user: User = Depends()) -> Any:  # type: ignore
-    """Stub for retrieving the current authenticated user.
-
-    In a real implementation, `current_user` would be provided by
-    dependency injection that validates the JWT and fetches the user
-    from the database.
-    """
-    # TODO: implement authentication dependency
-    raise HTTPException(status_code=501, detail="Not implemented")
+def read_users_me(current_user: User = Depends(get_current_user)) -> Any:
+    """Return the currently authenticated user's information."""
+    roles = auth_service.get_user_roles(current_user)
+    return schemas.UserOut(
+        id=current_user.id,
+        email=current_user.email,
+        status=current_user.status,
+        roles=roles,
+    )
