@@ -52,7 +52,7 @@ def create_access_token(user_id: int, roles: List[str], expires_delta: Optional[
 def create_refresh_token(db: Session, user_id: int, device_info: str | None = None) -> str:
     """Generate and persist a refresh token for a user."""
     import uuid
-    token = uuid.uuid4().hex
+    token = str(uuid.uuid4())
     expiry = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     db_token = RefreshToken(token=token, user_id=user_id, device_info=device_info, expiry=expiry)
     db.add(db_token)
@@ -71,8 +71,6 @@ def verify_refresh_token(db: Session, token: str) -> Optional[User]:
 def get_user_roles(user: User) -> List[str]:
     """Return a list of role names assigned to a user."""
     return [role.name for role in user.roles]
-
-
 def decode_access_token(token: str) -> Optional[schemas.TokenData]:
     """Decode a JWT access token and return the contained data."""
     try:
@@ -84,3 +82,4 @@ def decode_access_token(token: str) -> Optional[schemas.TokenData]:
         return schemas.TokenData(user_id=int(user_id), roles=list(roles))
     except JWTError:
         return None
+
