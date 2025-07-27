@@ -46,3 +46,14 @@ def decode_access_token(token: str) -> Optional[schemas.TokenData]:
         return schemas.TokenData(user_id=int(user_id), roles=list(roles))
     except JWTError:
         return None
+
+
+def change_password(db: Session, user_id: int, old_password: str, new_password: str) -> bool:
+    """Update a user's password after verifying the old password."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not verify_password(old_password, user.password_hash):
+        return False
+
+    user.password_hash = hash_password(new_password)
+    db.commit()
+    return True

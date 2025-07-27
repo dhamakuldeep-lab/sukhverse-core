@@ -33,6 +33,13 @@ class UserLogin(BaseModel):
     password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    """Payload for changing a user's password."""
+
+    old_password: str
+    new_password: constr(min_length=8)
+
+
 class UserOut(BaseModel):
     id: int
     email: EmailStr
