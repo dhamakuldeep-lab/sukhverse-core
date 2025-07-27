@@ -6,8 +6,7 @@ retrieving the current user's information.  Role/permission endpoints
 are stubbed and can be extended.
 """
 
-from datetime import timedelta
-from typing import Any, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -17,7 +16,7 @@ from .. import schemas
 from ..database import get_db
 from ..models.user import User
 from ..services import auth as auth_service
-from jose import JWTError, jwt
+from ..security.jwt import get_current_user
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -56,19 +55,13 @@ def refresh_token(token_in: schemas.RefreshTokenRequest, db: Session = Depends(g
 
 
 @router.get("/me", response_model=schemas.UserOut)
-def read_users_me(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
-) -> Any:
-    """Return the currently authenticated user based on the provided JWT."""
-    token_data = auth_service.decode_access_token(token)
-    if not token_data:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(User).filter(User.id == token_data.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+def read_users_me(current_user: User = Depends(get_current_user)) -> Any:
+    """Return the currently authenticated user's information."""
+    roles = auth_service.get_user_roles(current_user)
     return schemas.UserOut(
-        id=user.id,
-        email=user.email,
-        status=user.status,
-        roles=token_data.roles,
+        id=current_user.id,
+        email=current_user.email,
+        status=current_user.status,
+        roles=roles,
     )
+
