@@ -16,9 +16,25 @@ from ..events.producer import publish_event
 import os
 
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecretkey")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    raise EnvironmentError("JWT_SECRET_KEY environment variable is required")
+
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+try:
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"])
+    if ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
+        raise ValueError
+except KeyError as exc:
+    raise EnvironmentError(
+        "ACCESS_TOKEN_EXPIRE_MINUTES environment variable is required"
+    ) from exc
+except ValueError as exc:
+    raise ValueError(
+        "ACCESS_TOKEN_EXPIRE_MINUTES must be a positive integer"
+    ) from exc
+
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 
