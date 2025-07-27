@@ -1,0 +1,181 @@
+version: '3.9'
+
+services:
+  # -----------------------------
+  # PostgreSQL databases
+  # Each service has its own database instance for isolation.
+  auth_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  user_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: user_mgmt_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+
+  workshop_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: workshop_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - workshop_db_data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+
+  quiz_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: quiz_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - quiz_db_data:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+
+  analytics_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: analytics_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - analytics_db_data:/var/lib/postgresql/data
+    ports:
+      - "5437:5432"
+
+  certificate_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: certificate_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - certificate_db_data:/var/lib/postgresql/data
+    ports:
+      - "5438:5432"
+
+  # -----------------------------
+  # Kafka and Zookeeper for the event bus.  The analytics and certificate
+  # services will consume events while other services publish them.
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: bitnami/kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+    ports:
+      - "9092:9092"
+
+  # -----------------------------
+  # Microservices
+  auth_service:
+    build: ./auth_service
+    env_file:
+      - ./auth_service/.env
+    depends_on:
+      - auth_db
+      - kafka
+    ports:
+      - "8000:8000"
+
+  user_mgmt_service:
+    build: ./user_mgmt_service
+    env_file:
+      - ./user_mgmt_service/.env
+    depends_on:
+      - user_db
+      - auth_service
+      - kafka
+    ports:
+      - "8001:8000"
+
+  workshop_service:
+    build: ./workshop_service
+    env_file:
+      - ./workshop_service/.env
+    depends_on:
+      - workshop_db
+      - auth_service
+      - kafka
+    ports:
+      - "8002:8000"
+
+  quiz_service:
+    build: ./quiz_service
+    env_file:
+      - ./quiz_service/.env
+    depends_on:
+      - quiz_db
+      - kafka
+    ports:
+      - "8003:8000"
+
+  analytics_service:
+    build: ./analytics_service
+    env_file:
+      - ./analytics_service/.env
+    depends_on:
+      - analytics_db
+      - kafka
+    ports:
+      - "8004:8000"
+
+  certificate_service:
+    build: ./certificate_service
+    env_file:
+      - ./certificate_service/.env
+    depends_on:
+      - certificate_db
+      - kafka
+    ports:
+      - "8005:8000"
+
+  # Front-end React application
+  frontend:
+    build: ./frontend
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - auth_service
+      - user_mgmt_service
+      - workshop_service
+      - quiz_service
+      - analytics_service
+      - certificate_service
+    ports:
+      - "3000:3000"
+
+volumes:
+  auth_db_data:
+  user_db_data:
+  workshop_db_data:
+  quiz_db_data:
+  analytics_db_data:
+  certificate_db_data:

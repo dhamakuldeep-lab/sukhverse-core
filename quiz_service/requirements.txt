@@ -1,0 +1,6 @@
+fastapi==0.109.0
+uvicorn==0.29.0
+sqlalchemy==1.4.40
+psycopg2-binary==2.9.7
+pydantic==1.10.12
+kafka-python==2.0.2

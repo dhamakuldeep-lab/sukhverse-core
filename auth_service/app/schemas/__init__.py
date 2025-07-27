@@ -1,0 +1,1 @@
+# Pydantic schemas for the auth service are exposed in submodules.
