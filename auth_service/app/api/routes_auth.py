@@ -1,5 +1,5 @@
 """
-📄 File: auth_service/app/routes/routes_auth.py
+📄 File: auth_service/app/api/routes_auth.py
 
 Auth service API routes.
 
