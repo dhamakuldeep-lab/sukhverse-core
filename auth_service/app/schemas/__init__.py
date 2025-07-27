@@ -7,6 +7,9 @@ from .auth import (
     UserCreate,
     UserLogin,
     UserOut,
+    ChangePasswordRequest,
+    PasswordResetRequest,
+    ResetPasswordRequest,
 )
 
 __all__ = [
@@ -16,4 +19,7 @@ __all__ = [
     "UserCreate",
     "UserLogin",
     "UserOut",
+    "ChangePasswordRequest",
+    "PasswordResetRequest",
+    "ResetPasswordRequest",
 ]
