@@ -56,7 +56,6 @@ def client(monkeypatch):
     from auth_service.app.main import create_app
     from auth_service.app.database import get_db
     from auth_service.app.events import producer as producer_module
-    from auth_service.app import services
     from auth_service.app.services import auth as auth_service_module
 
     def override_get_db():
@@ -73,11 +72,6 @@ def client(monkeypatch):
 
     monkeypatch.setattr(producer_module, "publish_event", fake_publish_event)
     monkeypatch.setattr(auth_service_module, "publish_event", fake_publish_event)
-
-    # Override DB engine and session in the database module used by the app
-    from auth_service.app import database as database_module
-    database_module.engine = engine
-    database_module.SessionLocal = TestingSessionLocal
 
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db
