@@ -9,7 +9,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from .. import schemas
-from ..models.user import User, RefreshToken, Role
+from ..models.user import User, RefreshToken, PasswordReset, Role
 from ..utils.security import hash_password, verify_password
 from ..events.producer import publish_event
 
@@ -71,3 +71,35 @@ def verify_refresh_token(db: Session, token: str) -> Optional[User]:
 def get_user_roles(user: User) -> List[str]:
     """Return a list of role names assigned to a user."""
     return [role.name for role in user.roles]
+
+
+def create_password_reset(db: Session, user_id: int) -> str:
+    """Create a password reset token for the given user."""
+    import uuid
+
+    token = str(uuid.uuid4())
+    expiry = datetime.utcnow() + timedelta(minutes=15)
+    reset = PasswordReset(token=token, user_id=user_id, expiry=expiry)
+    db.add(reset)
+    db.commit()
+    return token
+
+
+def verify_password_reset(db: Session, token: str) -> Optional[PasswordReset]:
+    """Return the PasswordReset entry if valid and not expired."""
+    reset = db.query(PasswordReset).filter(PasswordReset.token == token).first()
+    if not reset or reset.expiry < datetime.utcnow():
+        return None
+    return reset
+
+
+def reset_user_password(db: Session, token: str, new_password: str) -> bool:
+    """Update the user's password if the reset token is valid."""
+    reset = verify_password_reset(db, token)
+    if not reset:
+        return False
+    user = reset.user
+    user.password_hash = hash_password(new_password)
+    db.delete(reset)
+    db.commit()
+    return True
