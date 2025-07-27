@@ -55,6 +55,24 @@ def refresh_token(token_in: schemas.RefreshTokenRequest, db: Session = Depends(g
     return schemas.Token(access_token=access_token, refresh_token=token_in.refresh_token)
 
 
+
+@router.post("/forgot-password")
+def forgot_password(payload: schemas.PasswordResetRequest, db: Session = Depends(get_db)) -> Any:
+    """Generate a password reset token for the given email."""
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    token = auth_service.create_password_reset(db, user.id)
+    return {"reset_token": token}
+
+
+@router.post("/reset-password")
+def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(get_db)) -> Any:
+    """Reset a user's password using a valid token."""
+    success = auth_service.reset_user_password(db, payload.token, payload.new_password)
+    if not success:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    return {"message": "Password updated"}
 @router.post("/refresh-token", response_model=schemas.Token)
 def refresh_token_new(token_in: schemas.RefreshTokenRequest, db: Session = Depends(get_db)) -> Any:
     """Issue a new access token based on a valid refresh token."""
@@ -64,6 +82,7 @@ def refresh_token_new(token_in: schemas.RefreshTokenRequest, db: Session = Depen
     roles = auth_service.get_user_roles(user)
     access_token = auth_service.create_access_token(user.id, roles)
     return schemas.Token(access_token=access_token, refresh_token=token_in.refresh_token)
+
 
 
 @router.get("/me", response_model=schemas.UserOut)
