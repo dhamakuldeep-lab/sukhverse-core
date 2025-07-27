@@ -41,9 +41,9 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     return user
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token."""
-    to_encode = data.copy()
+def create_access_token(user_id: int, roles: List[str], expires_delta: Optional[timedelta] = None) -> str:
+    """Create a JWT access token embedding the user's roles."""
+    to_encode = {"sub": str(user_id), "roles": roles}
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
@@ -71,3 +71,15 @@ def verify_refresh_token(db: Session, token: str) -> Optional[User]:
 def get_user_roles(user: User) -> List[str]:
     """Return a list of role names assigned to a user."""
     return [role.name for role in user.roles]
+def decode_access_token(token: str) -> Optional[schemas.TokenData]:
+    """Decode a JWT access token and return the contained data."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        roles = payload.get("roles", [])
+        if user_id is None:
+            return None
+        return schemas.TokenData(user_id=int(user_id), roles=list(roles))
+    except JWTError:
+        return None
+
