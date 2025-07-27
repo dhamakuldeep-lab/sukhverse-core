@@ -9,7 +9,7 @@ are stubbed and can be extended.
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from .. import schemas
@@ -17,6 +17,8 @@ from ..database import get_db
 from ..models.user import User
 from ..services import auth as auth_service
 from ..security.jwt import get_current_user
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,8 +38,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     roles = auth_service.get_user_roles(user)
-    token_data = {"sub": str(user.id), "roles": roles}
-    access_token = auth_service.create_access_token(token_data)
+    access_token = auth_service.create_access_token(user.id, roles)
     refresh_token = auth_service.create_refresh_token(db, user.id)
     return schemas.Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -49,8 +50,7 @@ def refresh_token(token_in: schemas.RefreshTokenRequest, db: Session = Depends(g
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
     roles = auth_service.get_user_roles(user)
-    token_data = {"sub": str(user.id), "roles": roles}
-    access_token = auth_service.create_access_token(token_data)
+    access_token = auth_service.create_access_token(user.id, roles)
     return schemas.Token(access_token=access_token, refresh_token=token_in.refresh_token)
 
 
@@ -64,3 +64,4 @@ def read_users_me(current_user: User = Depends(get_current_user)) -> Any:
         status=current_user.status,
         roles=roles,
     )
+
