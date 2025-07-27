@@ -42,6 +42,9 @@ def client(monkeypatch):
         "UserOut",
         "Token",
         "RefreshTokenRequest",
+        "ChangePasswordRequest",
+        "PasswordResetRequest",
+        "ResetPasswordRequest",
     ):
         setattr(schemas_pkg, name, getattr(auth_schemas, name))
 
