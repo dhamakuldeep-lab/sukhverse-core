@@ -10,7 +10,7 @@ from datetime import timedelta
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from .. import schemas
@@ -18,6 +18,35 @@ from ..database import get_db
 from ..models.user import User, Role
 from ..services import auth as auth_service
 from jose import JWTError, jwt
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """Decode the JWT and return the current user."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+    try:
+        payload = jwt.decode(
+            token,
+            auth_service.JWT_SECRET_KEY,
+            algorithms=[auth_service.JWT_ALGORITHM],
+        )
+        user_id: str | None = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user:
+        raise credentials_exception
+    return user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -53,6 +82,24 @@ def refresh_token(token_in: schemas.RefreshTokenRequest, db: Session = Depends(g
     token_data = {"sub": str(user.id), "roles": roles}
     access_token = auth_service.create_access_token(token_data)
     return schemas.Token(access_token=access_token, refresh_token=token_in.refresh_token)
+
+
+@router.post("/change-password")
+def change_password(
+    passwords: schemas.ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Allow an authenticated user to change their password."""
+    success = auth_service.change_password(
+        db,
+        user_id=current_user.id,
+        old_password=passwords.old_password,
+        new_password=passwords.new_password,
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail="Incorrect password")
+    return {"message": "Password updated"}
 
 
 @router.get("/me", response_model=schemas.UserOut)

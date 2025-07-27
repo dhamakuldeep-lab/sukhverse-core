@@ -71,3 +71,15 @@ def verify_refresh_token(db: Session, token: str) -> Optional[User]:
 def get_user_roles(user: User) -> List[str]:
     """Return a list of role names assigned to a user."""
     return [role.name for role in user.roles]
+
+
+def change_password(db: Session, user_id: int, old_password: str, new_password: str) -> bool:
+    """Update a user's password after verifying the old password."""
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not verify_password(old_password, user.password_hash):
+        return False
+
+    user.password_hash = hash_password(new_password)
+    db.commit()
+    return True
